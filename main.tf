@@ -152,7 +152,7 @@ resource "aws_eks_node_group" "node_group" {
 
   # ✅ Uses created key pair
   remote_access {
-    ec2_ssh_key = aws_key_pair.devops.key_name
+    ec2_ssh_key = aws_key_pair.DevOps.key_name
   }
 
   depends_on = [
