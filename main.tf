@@ -6,11 +6,11 @@ provider "aws" {
 # KEY PAIR
 # ---------------------------
 resource "aws_key_pair" "DevOps" {
-  key_name   = var.key_name
+  key_name   = "DevOps"
   public_key = file("${path.module}/keys/id_rsa.pub")
 
   tags = {
-    Name = "devops-key"
+    Name = "DevOps-key"
   }
 }
 
@@ -77,7 +77,7 @@ resource "aws_security_group" "eks_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # ⚠️ Restrict to your IP in production
+    cidr_blocks = ["0.0.0.0/0"] # ⚠️ restrict this in production
   }
 
   egress {
@@ -156,6 +156,10 @@ resource "aws_eks_cluster" "eks" {
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
+
+  tags = {
+    Name = var.cluster_name
+  }
 }
 
 # ---------------------------
@@ -173,8 +177,10 @@ resource "aws_eks_node_group" "node_group" {
     min_size     = 1
   }
 
-  instance_types = ["t3.medium"]
+  # ✅ UPDATED INSTANCE TYPE
+  instance_types = ["t3.small"]
 
+  # ✅ USING DevOps KEY PAIR
   remote_access {
     ec2_ssh_key               = aws_key_pair.DevOps.key_name
     source_security_group_ids = [aws_security_group.eks_sg.id]
@@ -186,4 +192,8 @@ resource "aws_eks_node_group" "node_group" {
     aws_iam_role_policy_attachment.cni_policy,
     aws_iam_role_policy_attachment.registry_policy
   ]
+
+  tags = {
+    Name = "eks-node-group"
+  }
 }
