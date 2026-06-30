@@ -3,18 +3,6 @@ provider "aws" {
 }
 
 # ---------------------------
-# KEY PAIR
-# ---------------------------
-resource "aws_key_pair" "DevOps" {
-  key_name   = "DevOps"
-  public_key = file("${path.module}/keys/id_rsa.pub")
-
-  tags = {
-    Name = "DevOps-key"
-  }
-}
-
-# ---------------------------
 # VPC
 # ---------------------------
 resource "aws_vpc" "eks_vpc" {
@@ -40,10 +28,6 @@ resource "aws_subnet" "eks_subnet" {
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.eks_vpc.id
-
-  tags = {
-    Name = "eks-igw"
-  }
 }
 
 resource "aws_route_table" "rt" {
@@ -52,10 +36,6 @@ resource "aws_route_table" "rt" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = {
-    Name = "eks-rt"
   }
 }
 
@@ -69,15 +49,13 @@ resource "aws_route_table_association" "rta" {
 # SECURITY GROUP
 # ---------------------------
 resource "aws_security_group" "eks_sg" {
-  name   = "eks-sg"
   vpc_id = aws_vpc.eks_vpc.id
 
   ingress {
-    description = "SSH access"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # ⚠️ restrict this in production
+    cidr_blocks = ["0.0.0.0/0"] # ⚠️ restrict later
   }
 
   egress {
@@ -85,10 +63,6 @@ resource "aws_security_group" "eks_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "eks-sg"
   }
 }
 
@@ -156,10 +130,6 @@ resource "aws_eks_cluster" "eks" {
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
-
-  tags = {
-    Name = var.cluster_name
-  }
 }
 
 # ---------------------------
@@ -177,12 +147,12 @@ resource "aws_eks_node_group" "node_group" {
     min_size     = 1
   }
 
-  # ✅ UPDATED INSTANCE TYPE
+  # ✅ t3.small as requested
   instance_types = ["t3.small"]
 
-  # ✅ USING DevOps KEY PAIR
+  # ✅ USE EXISTING AWS KEY PAIR
   remote_access {
-    ec2_ssh_key               = aws_key_pair.DevOps.key_name
+    ec2_ssh_key               = "DevOps"
     source_security_group_ids = [aws_security_group.eks_sg.id]
   }
 
@@ -192,8 +162,4 @@ resource "aws_eks_node_group" "node_group" {
     aws_iam_role_policy_attachment.cni_policy,
     aws_iam_role_policy_attachment.registry_policy
   ]
-
-  tags = {
-    Name = "eks-node-group"
-  }
 }
