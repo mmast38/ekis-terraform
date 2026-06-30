@@ -7,7 +7,11 @@ provider "aws" {
 # ---------------------------
 resource "aws_key_pair" "DevOps" {
   key_name   = var.key_name
-  public_key = file(var.public_key_path)
+  public_key = file("${path.module}/keys/id_rsa.pub")
+
+  tags = {
+    Name = "devops-key"
+  }
 }
 
 # ---------------------------
@@ -36,6 +40,10 @@ resource "aws_subnet" "eks_subnet" {
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.eks_vpc.id
+
+  tags = {
+    Name = "eks-igw"
+  }
 }
 
 resource "aws_route_table" "rt" {
@@ -44,6 +52,10 @@ resource "aws_route_table" "rt" {
   route {
     cidr_block = "0.0.0.0/0"
     gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "eks-rt"
   }
 }
 
@@ -57,13 +69,26 @@ resource "aws_route_table_association" "rta" {
 # SECURITY GROUP
 # ---------------------------
 resource "aws_security_group" "eks_sg" {
+  name   = "eks-sg"
   vpc_id = aws_vpc.eks_vpc.id
+
+  ingress {
+    description = "SSH access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # ⚠️ Restrict to your IP in production
+  }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "eks-sg"
   }
 }
 
@@ -150,12 +175,15 @@ resource "aws_eks_node_group" "node_group" {
 
   instance_types = ["t3.medium"]
 
-  # ✅ Uses created key pair
   remote_access {
-    ec2_ssh_key = aws_key_pair.DevOps.key_name
+    ec2_ssh_key               = aws_key_pair.DevOps.key_name
+    source_security_group_ids = [aws_security_group.eks_sg.id]
   }
 
   depends_on = [
-    aws_eks_cluster.eks
+    aws_eks_cluster.eks,
+    aws_iam_role_policy_attachment.worker_policy,
+    aws_iam_role_policy_attachment.cni_policy,
+    aws_iam_role_policy_attachment.registry_policy
   ]
 }
