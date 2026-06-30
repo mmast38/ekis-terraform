@@ -11,5 +11,5 @@ output "cluster_ca_certificate" {
 }
 
 output "key_pair_name" {
-  value = aws_key_pair.devops.key_name
+  value = aws_key_pair.DevOps.key_name
 }
